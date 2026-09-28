@@ -40,14 +40,13 @@ def content_filter(response: str) -> dict:
     redacted = response
 
     # PII patterns to check
-    PII_PATTERNS = {
-        # TODO: Add regex patterns for:
-        # - VN phone number: r"0\d{9,10}"
-        # - Email: r"[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}"
-        # - National ID (CMND/CCCD): r"\b\d{9}\b|\b\d{12}\b"
-        # - API key pattern: r"sk-[a-zA-Z0-9-]+"
-        # - Password pattern: r"password\s*[:=]\s*\S+"
-    }
+    PII_PATTERNS = {                                                                                        
+        "VN phone number": r"(?:\+84|0)\d{9,10}\b",                                                         
+        "Email": r"[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}",                                                          
+        "National ID (CMND/CCCD)": r"\b\d{9}\b|\b\d{12}\b",                                                 
+        "API key pattern": r"sk-[a-zA-Z0-9-]+",                                                             
+        "Password pattern": r"(?:password|mật\s*khẩu)\s*(?:is|[:=])\s*\S+",                                 
+    }  
 
     for name, pattern in PII_PATTERNS.items():
         matches = re.findall(pattern, response, re.IGNORECASE)
@@ -180,7 +179,13 @@ class OutputGuardrailPlugin(base_plugin.BasePlugin):
         #    - If unsafe: replace llm_response.content with a safe message
         #    - Increment self.blocked_count
         # 3. Return llm_response (possibly modified)
-
+        content = content_filter(response=response_text)
+        if not content["safe"]:
+            self.redacted_count += 1
+            llm_response.content = types.Content(
+                role="model",
+                parts=[types.Part.from_text(text=content["redacted"])]
+            )
         return llm_response  # TODO: modify if needed
 
 
